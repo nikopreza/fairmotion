@@ -11,6 +11,7 @@ import torch.nn as nn
 
 from fairmotion.tasks.motion_prediction import generate, utils, test
 from fairmotion.utils import utils as fairmotion_utils
+from copy import deepcopy
 
 
 logging.basicConfig(
@@ -67,26 +68,27 @@ def train(args):
     model.init_weights()
     training_losses, val_losses = [], []
 
-    epoch_loss = 0
-    for iterations, (src_seqs, tgt_seqs) in enumerate(dataset["train"]):
-        model.eval()
-        src_seqs, tgt_seqs = src_seqs.to(device), tgt_seqs.to(device)
-        outputs = model(src_seqs, tgt_seqs, teacher_forcing_ratio=1,)
-        loss = criterion(outputs, tgt_seqs)
-        epoch_loss += loss.item()
-    epoch_loss = epoch_loss / num_training_sequences
-    val_loss = generate.eval(
-        model, criterion, dataset["validation"], args.batch_size, device,
-    )
-    logging.info(
-        "Before training: "
-        f"Training loss {epoch_loss} | "
-        f"Validation loss {val_loss}"
-    )
+    # epoch_loss = 0
+    # for iterations, (src_seqs, tgt_seqs) in enumerate(dataset["train"]):
+    #     model.eval()
+    #     src_seqs, tgt_seqs = src_seqs.to(device), tgt_seqs.to(device)
+    #     outputs = model(src_seqs, tgt_seqs, teacher_forcing_ratio=1,)
+    #     loss = criterion(outputs, tgt_seqs)
+    #     epoch_loss += loss.item()
+    # epoch_loss = epoch_loss / num_training_sequences
+    # val_loss = generate.eval(
+    #     model, criterion, dataset["validation"], args.batch_size, device,
+    # )
+    # logging.info(
+    #     "Before training: "
+    #     f"Training loss {epoch_loss} | "
+    #     f"Validation loss {val_loss}"
+    # )
 
     logging.info("Training model...")
     torch.autograd.set_detect_anomaly(True)
     opt = utils.prepare_optimizer(model, args.optimizer, args.lr)
+    best_model = None
     for epoch in range(args.epochs):
         epoch_loss = 0
         model.train()
@@ -124,30 +126,29 @@ def train(args):
             f"Iterations {iterations + 1}"
         )
         if epoch % args.save_model_frequency == 0:
-            _, rep = os.path.split(args.preprocessed_path.strip("/"))
-            _, mae = test.test_model(
-                model=model,
-                dataset=dataset["validation"],
-                rep=rep,
-                device=device,
-                mean=mean,
-                std=std,
-                max_len=tgt_len,
-            )
-            logging.info(f"Validation MAE: {mae}")
-            torch.save(
-                model.state_dict(), f"{args.save_model_path}/{epoch}.model"
-            )
+            # _, rep = os.path.split(args.preprocessed_path.strip("/"))
+            # _, mae = test.test_model(
+            #     model=model,
+            #     dataset=dataset["validation"],
+            #     rep=rep,
+            #     device=device,
+            #     mean=mean,
+            #     std=std,
+            #     max_len=tgt_len,
+            # )
+            # logging.info(f"Validation MAE: {mae}")
             if len(val_losses) == 0 or val_loss <= min(val_losses):
-                torch.save(
-                    model.state_dict(), f"{args.save_model_path}/best.model"
-                )
+                logging.info("Stored new best model")
+                best_model = deepcopy(model.state_dict())
+    logging.info("Saving best model")
+    torch.save(best_model, f"{args.save_model_path}/best.model")
     return training_losses, val_losses
 
 
 def plot_curves(args, training_losses, val_losses):
-    plt.plot(range(len(training_losses)), training_losses)
-    plt.plot(range(len(val_losses)), val_losses)
+    plt.plot(range(len(training_losses)), training_losses, label='training')
+    plt.plot(range(len(val_losses)), val_losses, label='validation')
+    plt.legend()
     plt.ylabel("MSE Loss")
     plt.xlabel("Epoch")
     plt.savefig(f"{args.save_model_path}/loss.svg", format="svg")

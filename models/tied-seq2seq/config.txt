@@ -1,0 +1,12 @@
+architecture:tied_seq2seq
+batch_size:64
+device:cuda
+epochs:100
+hidden_dim:1024
+lr:None
+num_layers:1
+optimizer:sgd
+preprocessed_path:data/aa
+save_model_frequency:1
+save_model_path:models/tied-seq2seq
+shuffle:False

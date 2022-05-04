@@ -85,11 +85,13 @@ class TransformerLSTMModel(nn.Module):
 
 class TransformerModel(nn.Module):
     def __init__(
-        self, ntoken, ninp, num_heads, hidden_dim, num_layers, dropout=0.5
+        self, ntoken, ninp, num_heads, hidden_dim, num_layers, dropout=0.5, training=False
     ):
         super(TransformerModel, self).__init__()
         self.model_type = "Transformer"
         self.src_mask = None
+        
+        self.training = training
 
         self.pos_encoder = PositionalEncoding(ninp, dropout)
         encoder_layer = TransformerEncoderLayer(
